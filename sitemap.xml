@@ -11,11 +11,15 @@
   </url>
   
   <url>
-    <loc>/heron/docs/contributors/codebase/</loc>
+    <loc>/heron/docs/contributors/custom-metrics-sink/</loc>
   </url>
   
   <url>
-    <loc>/heron/docs/contributors/custom-metrics-sink/</loc>
+    <loc>/heron/docs/concepts/topologies/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/contributors/codebase/</loc>
   </url>
   
   <url>
@@ -27,23 +31,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/contributors/roadmap/</loc>
-  </url>
-  
-  <url>
     <loc>/heron/docs/contributors/governance/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/contributors/license/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/contributors/support/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/concepts/topologies/</loc>
   </url>
   
   <url>
@@ -51,7 +39,15 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/compiling/linux/</loc>
+    <loc>/heron/docs/contributors/license/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/contributors/roadmap/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/contributors/support/</loc>
   </url>
   
   <url>
@@ -63,7 +59,15 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/compiling/mac/</loc>
+    <loc>/heron/docs/developers/java/bolts/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/developers/java/spouts/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/developers/compiling/linux/</loc>
   </url>
   
   <url>
@@ -75,14 +79,6 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/java/bolts/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/developers/java/spouts/</loc>
-  </url>
-  
-  <url>
     <loc>/heron/docs/developers/simulator-mode/</loc>
   </url>
   
@@ -91,7 +87,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/ui-guide/</loc>
+    <loc>/heron/docs/developers/tuning/</loc>
   </url>
   
   <url>
@@ -99,7 +95,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/tuning/</loc>
+    <loc>/heron/docs/developers/compiling/mac/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/developers/ui-guide/</loc>
   </url>
   
   <url>
@@ -107,11 +107,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/getting-started/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/operators/configuration/stmgr/</loc>
+    <loc>/heron/docs/operators/configuration/instance/</loc>
   </url>
   
   <url>
@@ -119,15 +115,19 @@
   </url>
   
   <url>
+    <loc>/heron/docs/operators/configuration/stmgr/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/getting-started/</loc>
+  </url>
+  
+  <url>
     <loc>/heron/docs/operators/configuration/system/</loc>
   </url>
   
   <url>
-    <loc>/heron/docs/operators/configuration/instance/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/operators/configuration/tmaster/</loc>
+    <loc>/heron/docs/operators/deployment/configuration/</loc>
   </url>
   
   <url>
@@ -135,7 +135,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/deployment/schedulers/aurora/</loc>
+    <loc>/heron/docs/operators/configuration/tmaster/</loc>
   </url>
   
   <url>
@@ -143,7 +143,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/deployment/configuration/</loc>
+    <loc>/heron/docs/operators/deployment/schedulers/aurora/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/operators/deployment/schedulers/slurm/</loc>
   </url>
   
   <url>
@@ -155,7 +159,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/deployment/schedulers/slurm/</loc>
+    <loc>/heron/docs/operators/deployment/uploaders/hdfs/</loc>
   </url>
   
   <url>
@@ -167,15 +171,15 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/deployment/uploaders/hdfs/</loc>
-  </url>
-  
-  <url>
     <loc>/heron/docs/operators/deployment/uploaders/s3/</loc>
   </url>
   
   <url>
     <loc>/heron/docs/operators/heron-cli/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/operators/heron-shell/</loc>
   </url>
   
   <url>
@@ -187,7 +191,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/heron-shell/</loc>
+    <loc>/heron/docs/operators/heron-tracker-api/</loc>
   </url>
   
   <url>
@@ -196,10 +200,6 @@
   
   <url>
     <loc>/heron/docs/resources/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/operators/heron-tracker-api/</loc>
   </url>
   
   <url>

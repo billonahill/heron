@@ -229,11 +229,289 @@ components during the &lt;code&gt;submit&lt;/code&gt; and &lt;code&gt;deactivate
 while viewing a topology on the Heron UI is included.&lt;/p&gt;
 
 &lt;!--
-The source for this doc lives here:
+The source for this diagram lives here:
 https://docs.google.com/drawings/d/10d1Q_VO0HFtOHftDV7kK6VbZMVI5EpEYHrD-LR7SczE
 --&gt;
 
-&lt;p&gt;&lt;img src=&#34;/heron/img/topology-submit-sequence-diagram.png&#34; alt=&#34;Topology Sequence Diagram&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/heron/img/topology-submit-sequence-diagram.png&#34; style=&#34;max-width:140%;!important;&#34; alt=&#34;Topology Sequence Diagram&#34;/&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Implementing a Custom Metrics Sink</title>
+      <link>/heron/docs/contributors/custom-metrics-sink/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/heron/docs/contributors/custom-metrics-sink/</guid>
+      <description>
+
+&lt;p&gt;Each Heron topology has its own centralized &lt;a href=&#34;../../concepts/architecture#metrics-manager&#34;&gt;Metrics
+Manager&lt;/a&gt; (MM), which collects
+metrics from all instances in the topology. You can define how the MM processes
+metrics by implementing a &lt;strong&gt;metrics sink&lt;/strong&gt;, which specifies how the MM handles
+incoming
+&lt;a href=&#34;/heron/api/com/twitter/heron/spi/metricsmgr/metrics/MetricsRecord.html&#34;&gt;&lt;code&gt;MetricsRecord&lt;/code&gt;&lt;/a&gt;
+objects.&lt;/p&gt;
+
+&lt;p&gt;Java is currently the only supported language for custom metrics sinks. This may
+change in the future.&lt;/p&gt;
+
+&lt;h2 id=&#34;currently-supported-sinks:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Currently-supported Sinks&lt;/h2&gt;
+
+&lt;p&gt;Heron comes equipped out of the box with three metrics sinks that you can apply
+for a specific topology. The code for these sinks may prove helpful for
+implementing your own.&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;/heron/api/com/twitter/heron/metricsmgr/sink/GraphiteSink.html&#34;&gt;&lt;code&gt;GraphiteSink&lt;/code&gt;&lt;/a&gt;
+&amp;mdash; Sends each &lt;code&gt;MetricsRecord&lt;/code&gt; object to a
+&lt;a href=&#34;http://graphite.wikidot.com/&#34;&gt;Graphite&lt;/a&gt; instance according to a Graphite
+prefix.&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;/heron/api/com/twitter/heron/metricsmgr/sink/ScribeSink.html&#34;&gt;&lt;code&gt;ScribeSink&lt;/code&gt;&lt;/a&gt;
+&amp;mdash; Sends each &lt;code&gt;MetricsRecord&lt;/code&gt; object to a
+&lt;a href=&#34;https://github.com/facebookarchive/scribe&#34;&gt;Scribe&lt;/a&gt; instance according to a
+Scribe category and namespace.&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;/heron/api/com/twitter/heron/metricsmgr/sink/FileSink.html&#34;&gt;&lt;code&gt;FileSink&lt;/code&gt;&lt;/a&gt;
+&amp;mdash; Writes each &lt;code&gt;MetricsRecord&lt;/code&gt; object to a JSON file at a specified path.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;More on using those sinks in a Heron cluster can be found in &lt;a href=&#34;../../operators/configuration/metrics-manager&#34;&gt;Metrics
+Manager&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;java-setup:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Java Setup&lt;/h2&gt;
+
+&lt;p&gt;In order to create a custom metrics sink, you need to import the &lt;code&gt;heron-spi&lt;/code&gt;
+library into your project.&lt;/p&gt;
+
+&lt;h4 id=&#34;maven:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Maven&lt;/h4&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-xml&#34;&gt;&amp;lt;dependency&amp;gt;
+  &amp;lt;groupId&amp;gt;com.twitter.heron&amp;lt;/groupId&amp;gt;
+  &amp;lt;artifactId&amp;gt;heron-spi&amp;lt;/artifactId&amp;gt;
+  &amp;lt;version&amp;gt;0.13.7&amp;lt;/version&amp;gt;
+&amp;lt;/dependency&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h4 id=&#34;gradle:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Gradle&lt;/h4&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-groovy&#34;&gt;dependencies {
+  compile group: &amp;quot;com.twitter.heron&amp;quot;, name: &amp;quot;heron-spi&amp;quot;, version: &amp;quot;0.13.7&amp;quot;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;the-imetricssink-interface:aa06ab48e9613e9713d52c24b3200421&#34;&gt;The &lt;code&gt;IMetricsSink&lt;/code&gt; Interface&lt;/h2&gt;
+
+&lt;p&gt;Each metrics sink must implement the
+&lt;a href=&#34;/heron/api/com/twitter/heron/spi/metricsmgr/sink/IMetricsSink.html&#34;&gt;&lt;code&gt;IMetricsSink&lt;/code&gt;&lt;/a&gt;
+interface, which requires you to implement the following methods:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;void init(Map&amp;lt;String, Object&amp;gt; conf, SinkContext context)&lt;/code&gt; &amp;mdash; Defines the
+initialization behavior of the sink. The &lt;code&gt;conf&lt;/code&gt; map is the configuration that
+is passed to the sink by the &lt;code&gt;.yaml&lt;/code&gt; configuration file at
+&lt;code&gt;heron/config/metrics_sink.yaml&lt;/code&gt;; the
+&lt;a href=&#34;/heron/api/com/twitter/heron/spi/metricsmgr/sink/SinkContext.html&#34;&gt;&lt;code&gt;SinkContext&lt;/code&gt;&lt;/a&gt;
+object enables you to access values from the sink&amp;rsquo;s runtime context
+(the ID of the metrics manager, the ID of the sink, and the name of the
+topology).&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;void processRecord(MetricsRecord record)&lt;/code&gt; &amp;mdash; Defines how each
+&lt;code&gt;MetricsRecord&lt;/code&gt; that passes through the sink is processed.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;void flush()&lt;/code&gt; &amp;mdash; Flush any buffered metrics; this function is called at
+the interval specified by the &lt;code&gt;flush-frequency-ms&lt;/code&gt;. More info can be found in
+the &lt;a href=&#34;../../operators/configuration/stmgr&#34;&gt;Stream Manager&lt;/a&gt; document.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;void close()&lt;/code&gt; &amp;mdash; Closes the stream and releases any system resources
+associated with it; if the stream is already closed, invoking &lt;code&gt;close()&lt;/code&gt; has no
+effect.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Your implementation of those interfaces will need to be packaged into a JAR file
+and distributed to the &lt;code&gt;metrics-mgr-classpath&lt;/code&gt; folder of your &lt;a href=&#34;../../developers/compiling&#34;&gt;Heron
+release&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;example-implementation:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Example Implementation&lt;/h2&gt;
+
+&lt;p&gt;Below is an example implementation that simply prints the contents of each
+metrics record as it passes through:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-java&#34;&gt;import com.twitter.heron.metricsmgr.api.metrics.MetricsInfo;
+import com.twitter.heron.metricsmgr.api.metrics.MetricsRecord;
+import com.twitter.heron.metricsmgr.api.sink.IMetricsSink;
+import com.twitter.heron.metricsmgr.api.sink.SinkContext;
+
+public class PrintSink implements IMetricsSink {
+    @Override
+    public void init(Map&amp;lt;String, Object&amp;gt; conf, SinkContext context) {
+        System.out.println(&amp;quot;Sink configuration:&amp;quot;);
+        // This will print out each config in the supplied configuration
+        for (Map.Entry&amp;lt;String, Object&amp;gt; config : conf.entrySet()) {
+            System.out.println(String.format(&amp;quot;%s: %s&amp;quot;, config.getKey(), config.getValue());
+        }
+        System.out.println(String.format(&amp;quot;Topology name: %s&amp;quot;, context.getTopologyName());
+        System.out.println(String.format(&amp;quot;Sink ID: %s&amp;quot;, context.getSinkId()));
+    }
+
+    @Override
+    public void processRecord(MetricsRecord record) {
+        String recordString = String.format(&amp;quot;Record received: %s&amp;quot;, record.toString());
+        System.out.println(recordString);
+    }
+
+    @Override
+    public void flush() {
+        // Since we&#39;re just printing to stdout in this sink, we don&#39;t need to
+        // specify any flush() behavior
+    }
+
+    @Override
+    public void close() {
+        // Since we&#39;re just printing to stdout in this sink, we don&#39;t need to
+        // specify any close() behavior
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&#34;configuring-your-custom-sink:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Configuring Your Custom Sink&lt;/h2&gt;
+
+&lt;p&gt;The configuration for your sink needs to be provided in the
+&lt;a href=&#34;http://www.yaml.org/&#34;&gt;YAML&lt;/a&gt; file at &lt;code&gt;heron/config/src/yaml/conf/${CLUSTER}/metrics_sinks.yaml&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;At the top of that file there&amp;rsquo;s a &lt;code&gt;sinks&lt;/code&gt; parameter that lists each available
+sink by name. You should add your sink to that list. Here&amp;rsquo;s an example:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-yaml&#34;&gt;sinks:
+  - file-sink
+  - scribe-sink
+  - tmaster-sink
+  - print-sink
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;For each sink you are required to specify the followings:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;class&lt;/code&gt; &amp;mdash; The Java class name of your custom implementation of the
+&lt;code&gt;IMetricsSink&lt;/code&gt; interface, e.g. &lt;code&gt;biz.acme.heron.metrics.PrintSink&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;flush-frequency-ms&lt;/code&gt; &amp;mdash; The frequency (in milliseconds) at which the
+&lt;code&gt;flush()&lt;/code&gt; method is called in your implementation of &lt;code&gt;IMetricsSink&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;sink-restart-attempts&lt;/code&gt; &amp;mdash; The number of times that a sink will attempt to
+restart if it throws exceptions and dies. If you do not set this, the default
+is 0; if you set it to -1, the sink will attempt to restart forever.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Below is an example &lt;code&gt;metrics_sink.yaml&lt;/code&gt; configuration:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-yaml&#34;&gt;sinks:
+  - print-sink
+
+print-sink:
+  class: &amp;quot;biz.acme.heron.metrics.PrintSink&amp;quot;
+  flush-frequency-ms: 60000 # One minute
+  sink-restart-attempts: -1 # Attempt to restart forever
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;It is optional to add other configurations for the sink. All configurations will be constructed
+ as an unmodifiable map &lt;code&gt;Map&amp;lt;String, Object&amp;gt; conf&lt;/code&gt; and passed to &lt;code&gt;init(conf, context)&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;using-your-custom-sink:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Using Your Custom Sink&lt;/h2&gt;
+
+&lt;p&gt;Once you&amp;rsquo;ve made a JAR for your custom Java sink, distributed that JAR to
+&lt;code&gt;metrics-mgr-classpath&lt;/code&gt; folder, and changed the configuration in
+&lt;code&gt;heron/config/src/yaml/conf/${CLUSTER}/metrics_sinks.yaml&lt;/code&gt;.
+Any topology submitted using that configuration will include the custom sink.You must &lt;a href=&#34;../../developers/compiling&#34;&gt;re-compile
+Heron&lt;/a&gt; if you want to include the configuration in a new heron-cli distribution.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Heron Topologies</title>
+      <link>/heron/docs/concepts/topologies/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/heron/docs/concepts/topologies/</guid>
+      <description>
+
+&lt;p&gt;A Heron &lt;strong&gt;topology&lt;/strong&gt; is a &lt;a href=&#34;https://en.wikipedia.org/wiki/Directed_acyclic_graph&#34;&gt;directed acyclic
+graph&lt;/a&gt; used to process
+streams of data. Heron topologies consist of three basic components:
+&lt;a href=&#34;#spouts&#34;&gt;spouts&lt;/a&gt; and &lt;a href=&#34;#bolts&#34;&gt;bolts&lt;/a&gt;, which are connected via
+&lt;strong&gt;streams&lt;/strong&gt; of &lt;a href=&#34;../../developers/data-model&#34;&gt;tuples&lt;/a&gt;. Below is a visual
+illustration of a simple topology:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;/heron/img/topology.png&#34; alt=&#34;Heron topology&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Spouts are responsible for emitting &lt;a href=&#34;../../developers/data-model&#34;&gt;tuples&lt;/a&gt;
+into the topology, while bolts are responsible for processing those tuples. In
+the diagram above, spout &lt;strong&gt;S1&lt;/strong&gt; feeds tuples to bolts &lt;strong&gt;B1&lt;/strong&gt; and &lt;strong&gt;B2&lt;/strong&gt; for
+processing; in turn, bolt &lt;strong&gt;B1&lt;/strong&gt; feeds processed tuples to bolts &lt;strong&gt;B3&lt;/strong&gt; and
+&lt;strong&gt;B4&lt;/strong&gt;, while bolt &lt;strong&gt;B2&lt;/strong&gt; feeds processed tuples to bolt &lt;strong&gt;B4&lt;/strong&gt;.&lt;/p&gt;
+
+&lt;p&gt;This is just a simple example; you can use bolts and spouts to form arbitrarily
+complex topologies.&lt;/p&gt;
+
+&lt;h2 id=&#34;topology-lifecycle:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Topology Lifecycle&lt;/h2&gt;
+
+&lt;p&gt;Once you&amp;rsquo;ve set up a &lt;a href=&#34;../../operators/deployment&#34;&gt;Heron cluster&lt;/a&gt;, you
+can use Heron&amp;rsquo;s &lt;a href=&#34;../../operators/heron-cli&#34;&gt;CLI tool&lt;/a&gt; to manage the entire
+lifecycle of a topology, which typically goes through the following stages:&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;a href=&#34;../../operators/heron-cli#submitting-a-topology&#34;&gt;submit&lt;/a&gt; the topology
+to the cluster. The topology is not yet processing streams but is ready to be
+activated.&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;../../operators/heron-cli#activating-a-topology&#34;&gt;activate&lt;/a&gt; the
+topology. The topology will begin processing streams in accordance with
+the topology architecture that you&amp;rsquo;ve created.&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;../../operators/heron-cli#restarting-a-topology&#34;&gt;restart&lt;/a&gt; an
+active topology if, for example, you need update the topology configuration.&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;../../operators/heron-cli#deactivating-a-topology&#34;&gt;deactivate&lt;/a&gt; the
+topology. Once deactivated, the topology will stop processing but
+remain running in the cluster.&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;../../operators/heron-cli#killing-a-topology&#34;&gt;kill&lt;/a&gt; a topology to completely
+remove it from the cluster.  It is no longer known to the Heron cluster and
+can no longer be activated. Once killed, the only way to run that topology is
+to re-submit it.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&#34;spouts:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Spouts&lt;/h2&gt;
+
+&lt;p&gt;A Heron &lt;strong&gt;spout&lt;/strong&gt; is a source of streams, responsible for emitting
+&lt;a href=&#34;../../developers/data-model&#34;&gt;tuples&lt;/a&gt; into the topology. A spout may, for
+example, read data from a Kestrel queue or read tweets from the Twitter API and
+emit tuples to one or more bolts.&lt;/p&gt;
+
+&lt;p&gt;Information on building spouts can be found in &lt;a href=&#34;../../developers/java/spouts&#34;&gt;Building
+Spouts&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;bolts:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Bolts&lt;/h2&gt;
+
+&lt;p&gt;A Heron &lt;strong&gt;bolt&lt;/strong&gt; consumes streams of
+&lt;a href=&#34;../../developers/data-model&#34;&gt;tuples&lt;/a&gt; emitted by spouts and performs some
+set of user-defined processing operations on those tuples, which may include
+performing complex stream transformations, performing storage operations,
+aggregating multiple streams into one, emitting tuples to other bolts within the
+topology, and much more.&lt;/p&gt;
+
+&lt;p&gt;Information on building bolts can be found in &lt;a href=&#34;../../developers/java/bolts&#34;&gt;Building
+Bolts&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;data-model:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Data Model&lt;/h2&gt;
+
+&lt;p&gt;Heron has a fundamentally tuple-driven data model. You can find more information
+in &lt;a href=&#34;../../developers/data-model&#34;&gt;Heron&amp;rsquo;s Data Model&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&#34;logical-plan:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Logical Plan&lt;/h2&gt;
+
+&lt;p&gt;A topology&amp;rsquo;s &lt;strong&gt;logical plan&lt;/strong&gt; is analagous to a database &lt;a href=&#34;https://en.wikipedia.org/wiki/Query_plan&#34;&gt;query
+plan&lt;/a&gt;. The image at the top of this
+page is an example logical plan for a topology.&lt;/p&gt;
+
+&lt;h2 id=&#34;physical-plan:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Physical Plan&lt;/h2&gt;
+
+&lt;p&gt;A topology&amp;rsquo;s &lt;strong&gt;physical plan&lt;/strong&gt; is related to its logical plan but with the
+crucial difference that a physical plan maps the actual execution logic of a
+topology, including the machines running each spout or bolt and more. Here&amp;rsquo;s a
+rough visual representation of a physical plan:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;/heron/img/physicalplan.png&#34; alt=&#34;Topology Physical Plan&#34; /&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -436,190 +714,6 @@ codebase. For more info see &lt;a href=&#34;../testing&#34;&gt;Testing Heron&lt;
     </item>
     
     <item>
-      <title>Implementing a Custom Metrics Sink</title>
-      <link>/heron/docs/contributors/custom-metrics-sink/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/heron/docs/contributors/custom-metrics-sink/</guid>
-      <description>
-
-&lt;p&gt;Each Heron topology has its own centralized &lt;a href=&#34;../../concepts/architecture#metrics-manager&#34;&gt;Metrics
-Manager&lt;/a&gt; (MM), which collects
-metrics from all instances in the topology. You can define how the MM processes
-metrics by implementing a &lt;strong&gt;metrics sink&lt;/strong&gt;, which specifies how the MM handles
-incoming
-&lt;a href=&#34;/heron/api/com/twitter/heron/spi/metricsmgr/metrics/MetricsRecord.html&#34;&gt;&lt;code&gt;MetricsRecord&lt;/code&gt;&lt;/a&gt;
-objects.&lt;/p&gt;
-
-&lt;p&gt;Java is currently the only supported language for custom metrics sinks. This may
-change in the future.&lt;/p&gt;
-
-&lt;h2 id=&#34;currently-supported-sinks:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Currently-supported Sinks&lt;/h2&gt;
-
-&lt;p&gt;Heron comes equipped out of the box with three metrics sinks that you can apply
-for a specific topology. The code for these sinks may prove helpful for
-implementing your own.&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;/heron/api/com/twitter/heron/metricsmgr/sink/GraphiteSink.html&#34;&gt;&lt;code&gt;GraphiteSink&lt;/code&gt;&lt;/a&gt;
-&amp;mdash; Sends each &lt;code&gt;MetricsRecord&lt;/code&gt; object to a
-&lt;a href=&#34;http://graphite.wikidot.com/&#34;&gt;Graphite&lt;/a&gt; instance according to a Graphite
-prefix.&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;/heron/api/com/twitter/heron/metricsmgr/sink/ScribeSink.html&#34;&gt;&lt;code&gt;ScribeSink&lt;/code&gt;&lt;/a&gt;
-&amp;mdash; Sends each &lt;code&gt;MetricsRecord&lt;/code&gt; object to a
-&lt;a href=&#34;https://github.com/facebookarchive/scribe&#34;&gt;Scribe&lt;/a&gt; instance according to a
-Scribe category and namespace.&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;/heron/api/com/twitter/heron/metricsmgr/sink/FileSink.html&#34;&gt;&lt;code&gt;FileSink&lt;/code&gt;&lt;/a&gt;
-&amp;mdash; Writes each &lt;code&gt;MetricsRecord&lt;/code&gt; object to a JSON file at a specified path.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;More on using those sinks in a Heron cluster can be found in &lt;a href=&#34;../../operators/configuration/metrics-manager&#34;&gt;Metrics
-Manager&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&#34;java-setup:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Java Setup&lt;/h2&gt;
-
-&lt;p&gt;In order to create a custom metrics sink, you need to import the &lt;code&gt;heron-spi&lt;/code&gt;
-library into your project.&lt;/p&gt;
-
-&lt;h4 id=&#34;maven:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Maven&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-xml&#34;&gt;&amp;lt;dependency&amp;gt;
-  &amp;lt;groupId&amp;gt;com.twitter.heron&amp;lt;/groupId&amp;gt;
-  &amp;lt;artifactId&amp;gt;heron-spi&amp;lt;/artifactId&amp;gt;
-  &amp;lt;version&amp;gt;0.13.7&amp;lt;/version&amp;gt;
-&amp;lt;/dependency&amp;gt;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h4 id=&#34;gradle:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Gradle&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-groovy&#34;&gt;dependencies {
-  compile group: &amp;quot;com.twitter.heron&amp;quot;, name: &amp;quot;heron-spi&amp;quot;, version: &amp;quot;0.13.7&amp;quot;
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h2 id=&#34;the-imetricssink-interface:aa06ab48e9613e9713d52c24b3200421&#34;&gt;The &lt;code&gt;IMetricsSink&lt;/code&gt; Interface&lt;/h2&gt;
-
-&lt;p&gt;Each metrics sink must implement the
-&lt;a href=&#34;/heron/api/com/twitter/heron/spi/metricsmgr/sink/IMetricsSink.html&#34;&gt;&lt;code&gt;IMetricsSink&lt;/code&gt;&lt;/a&gt;
-interface, which requires you to implement the following methods:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;void init(Map&amp;lt;String, Object&amp;gt; conf, SinkContext context)&lt;/code&gt; &amp;mdash; Defines the
-initialization behavior of the sink. The &lt;code&gt;conf&lt;/code&gt; map is the configuration that
-is passed to the sink by the &lt;code&gt;.yaml&lt;/code&gt; configuration file at
-&lt;code&gt;heron/config/metrics_sink.yaml&lt;/code&gt;; the
-&lt;a href=&#34;/heron/api/com/twitter/heron/spi/metricsmgr/sink/SinkContext.html&#34;&gt;&lt;code&gt;SinkContext&lt;/code&gt;&lt;/a&gt;
-object enables you to access values from the sink&amp;rsquo;s runtime context
-(the ID of the metrics manager, the ID of the sink, and the name of the
-topology).&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;void processRecord(MetricsRecord record)&lt;/code&gt; &amp;mdash; Defines how each
-&lt;code&gt;MetricsRecord&lt;/code&gt; that passes through the sink is processed.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;void flush()&lt;/code&gt; &amp;mdash; Flush any buffered metrics; this function is called at
-the interval specified by the &lt;code&gt;flush-frequency-ms&lt;/code&gt;. More info can be found in
-the &lt;a href=&#34;../../operators/configuration/stmgr&#34;&gt;Stream Manager&lt;/a&gt; document.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;void close()&lt;/code&gt; &amp;mdash; Closes the stream and releases any system resources
-associated with it; if the stream is already closed, invoking &lt;code&gt;close()&lt;/code&gt; has no
-effect.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Your implementation of those interfaces will need to be packaged into a JAR file
-and distributed to the &lt;code&gt;metrics-mgr-classpath&lt;/code&gt; folder of your &lt;a href=&#34;../../developers/compiling&#34;&gt;Heron
-release&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&#34;example-implementation:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Example Implementation&lt;/h2&gt;
-
-&lt;p&gt;Below is an example implementation that simply prints the contents of each
-metrics record as it passes through:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-java&#34;&gt;import com.twitter.heron.metricsmgr.api.metrics.MetricsInfo;
-import com.twitter.heron.metricsmgr.api.metrics.MetricsRecord;
-import com.twitter.heron.metricsmgr.api.sink.IMetricsSink;
-import com.twitter.heron.metricsmgr.api.sink.SinkContext;
-
-public class PrintSink implements IMetricsSink {
-    @Override
-    public void init(Map&amp;lt;String, Object&amp;gt; conf, SinkContext context) {
-        System.out.println(&amp;quot;Sink configuration:&amp;quot;);
-        // This will print out each config in the supplied configuration
-        for (Map.Entry&amp;lt;String, Object&amp;gt; config : conf.entrySet()) {
-            System.out.println(String.format(&amp;quot;%s: %s&amp;quot;, config.getKey(), config.getValue());
-        }
-        System.out.println(String.format(&amp;quot;Topology name: %s&amp;quot;, context.getTopologyName());
-        System.out.println(String.format(&amp;quot;Sink ID: %s&amp;quot;, context.getSinkId()));
-    }
-
-    @Override
-    public void processRecord(MetricsRecord record) {
-        String recordString = String.format(&amp;quot;Record received: %s&amp;quot;, record.toString());
-        System.out.println(recordString);
-    }
-
-    @Override
-    public void flush() {
-        // Since we&#39;re just printing to stdout in this sink, we don&#39;t need to
-        // specify any flush() behavior
-    }
-
-    @Override
-    public void close() {
-        // Since we&#39;re just printing to stdout in this sink, we don&#39;t need to
-        // specify any close() behavior
-    }
-}
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h2 id=&#34;configuring-your-custom-sink:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Configuring Your Custom Sink&lt;/h2&gt;
-
-&lt;p&gt;The configuration for your sink needs to be provided in the
-&lt;a href=&#34;http://www.yaml.org/&#34;&gt;YAML&lt;/a&gt; file at &lt;code&gt;heron/config/src/yaml/conf/${CLUSTER}/metrics_sinks.yaml&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;At the top of that file there&amp;rsquo;s a &lt;code&gt;sinks&lt;/code&gt; parameter that lists each available
-sink by name. You should add your sink to that list. Here&amp;rsquo;s an example:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-yaml&#34;&gt;sinks:
-  - file-sink
-  - scribe-sink
-  - tmaster-sink
-  - print-sink
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;For each sink you are required to specify the followings:&lt;/p&gt;
-
-&lt;ul&gt;
-&lt;li&gt;&lt;code&gt;class&lt;/code&gt; &amp;mdash; The Java class name of your custom implementation of the
-&lt;code&gt;IMetricsSink&lt;/code&gt; interface, e.g. &lt;code&gt;biz.acme.heron.metrics.PrintSink&lt;/code&gt;.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;flush-frequency-ms&lt;/code&gt; &amp;mdash; The frequency (in milliseconds) at which the
-&lt;code&gt;flush()&lt;/code&gt; method is called in your implementation of &lt;code&gt;IMetricsSink&lt;/code&gt;.&lt;/li&gt;
-&lt;li&gt;&lt;code&gt;sink-restart-attempts&lt;/code&gt; &amp;mdash; The number of times that a sink will attempt to
-restart if it throws exceptions and dies. If you do not set this, the default
-is 0; if you set it to -1, the sink will attempt to restart forever.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Below is an example &lt;code&gt;metrics_sink.yaml&lt;/code&gt; configuration:&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-yaml&#34;&gt;sinks:
-  - print-sink
-
-print-sink:
-  class: &amp;quot;biz.acme.heron.metrics.PrintSink&amp;quot;
-  flush-frequency-ms: 60000 # One minute
-  sink-restart-attempts: -1 # Attempt to restart forever
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;It is optional to add other configurations for the sink. All configurations will be constructed
- as an unmodifiable map &lt;code&gt;Map&amp;lt;String, Object&amp;gt; conf&lt;/code&gt; and passed to &lt;code&gt;init(conf, context)&lt;/code&gt;.&lt;/p&gt;
-
-&lt;h2 id=&#34;using-your-custom-sink:aa06ab48e9613e9713d52c24b3200421&#34;&gt;Using Your Custom Sink&lt;/h2&gt;
-
-&lt;p&gt;Once you&amp;rsquo;ve made a JAR for your custom Java sink, distributed that JAR to
-&lt;code&gt;metrics-mgr-classpath&lt;/code&gt; folder, and changed the configuration in
-&lt;code&gt;heron/config/src/yaml/conf/${CLUSTER}/metrics_sinks.yaml&lt;/code&gt;.
-Any topology submitted using that configuration will include the custom sink.You must &lt;a href=&#34;../../developers/compiling&#34;&gt;re-compile
-Heron&lt;/a&gt; if you want to include the configuration in a new heron-cli distribution.&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
       <title>Community</title>
       <link>/heron/docs/contributors/community/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
@@ -787,44 +881,6 @@ submission&lt;/a&gt;:&lt;/p&gt;
     </item>
     
     <item>
-      <title>Feature Roadmap</title>
-      <link>/heron/docs/contributors/roadmap/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/heron/docs/contributors/roadmap/</guid>
-      <description>
-
-&lt;p&gt;This document describes the Heron core contributors’ plans for introducing features that will be incorporated into version 1.0. Note that this roadmap only includes features that the Heron core contributors team itself intends to support. We anticipate that a number of other features will be added by community contributors.&lt;/p&gt;
-
-&lt;p&gt;For beta releases, the Heron team will maintain two code repositories:&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;&lt;p&gt;A non-public Twitter-internal repository, containing both the mirror of the public Heron Github repository and small proprietary Twitter-specific extensions and features.&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;An external &lt;a href=&#34;https://github.com/twitter/heron&#34;&gt;GitHub repository&lt;/a&gt;, containing only the Heron code.&lt;/p&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h3 id=&#34;feature-list:cd4a1b36ed2b93cfc52abf77a7d25d03&#34;&gt;Feature list&lt;/h3&gt;
-
-&lt;p&gt;In the following list, each feature is associated with a corresponding milestone. The convention for the priorities are:&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;&lt;p&gt;&lt;code&gt;P0&lt;/code&gt; feature will block the milestone; we will delay the milestone date until the feature is shipped.&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;code&gt;P1&lt;/code&gt; feature can delay the milestone if the feature can be shipped with a reasonable delay (2 months max).&lt;/p&gt;&lt;/li&gt;
-
-&lt;li&gt;&lt;p&gt;&lt;code&gt;P2&lt;/code&gt; feature will be dropped and rescheduled for later rather than delaying the milestone.&lt;/p&gt;&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;!--
-TODO - add feature Roadmap
---&gt;
-
-&lt;p&gt;We will update this list when reaching each milestone; some milestones may also be refined if appropriate.&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
       <title>Governance</title>
       <link>/heron/docs/contributors/governance/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
@@ -916,150 +972,6 @@ TODO - add feature Roadmap
     </item>
     
     <item>
-      <title>Twitter License Agreement (CLA)</title>
-      <link>/heron/docs/contributors/license/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/heron/docs/contributors/license/</guid>
-      <description>&lt;!-- TODO --&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Support Policy</title>
-      <link>/heron/docs/contributors/support/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/heron/docs/contributors/support/</guid>
-      <description>
-
-&lt;p&gt;Core contributors generally avoid making backwards-incompatible changes and are dedicated to remain backwards-compatible with the &lt;a href=&#34;http://storm.apache.org/&#34;&gt;Apache Storm API&lt;/a&gt; whenever possible. Substantial unit and integration tests are performed before every release to reasonably ensure reliability at scale.&lt;/p&gt;
-
-&lt;p&gt;However, occasionally backwards-incompatible changes are required in order to fix bugs, to make further improvements to the system, such as improving performance or usability, or to lock down APIs that are known to be brittle.&lt;/p&gt;
-
-&lt;p&gt;This document gives an overview of features that are widely used and considered stable. Stability implies that changes will be backwards compatible, or that a migration path is provided.  It also covers features that are unstable. Unstable features are not yet widely used, or are already planned to change them significantly, possibly in ways that are not backwards compatible.&lt;/p&gt;
-
-&lt;p&gt;Before a major change happens, you can reasonably expect that advanced notice will be provided on the mailing list. Just ask on heron-users@googlegroups.com.&lt;/p&gt;
-
-&lt;p&gt;All undocumented features are subject to change at any time without prior notice. Features that are documented but marked &lt;em&gt;experimental&lt;/em&gt; are also subject to change at any time without prior notice.&lt;/p&gt;
-
-&lt;p&gt;Heron relies on the Google &lt;a href=&#34;http://bazel.io&#34;&gt;Bazel&lt;/a&gt; build tool which is also in Beta.  Therefore, the Bazel Skylark macro and rules language (anything written in a .bzl file) is still subject to change. The Bazel Google group is in the process of migrating Google to Skylark, and expect the macro language to stabilize as part of that process.&lt;/p&gt;
-
-&lt;p&gt;Please help keep discover issues: report bugs and regressions in the &lt;a href=&#34;https://github.com/twitter/heron/issues&#34;&gt;GitHub bugtracker&lt;/a&gt;. Heron core contributors will make an effort to triage all reported issues within 2 business days.&lt;/p&gt;
-
-&lt;h3 id=&#34;releases:e39f786d0e9bcf34ce833b34fbb0c090&#34;&gt;Releases&lt;/h3&gt;
-
-&lt;p&gt;We regularly publish &lt;a href=&#34;https://github.com/twitter/heron/releases&#34;&gt;binary releases of Heron&lt;/a&gt;. To that end, release candidates are announced on heron-users; these are binaries that have passed all unit and integration tests. Over the next few days, regression tests are run, such as on applicable build targets at Twitter. If you have a critical project using Heron, it is recommended that you establish an automated testing process that tracks the current release candidate, and report any regressions.&lt;/p&gt;
-
-&lt;p&gt;If no regressions are discovered, official binaries are released after a week. However, regressions can delay the release of a release candidate. If regressions are found, corresponding cherry-picks are applied to the release candidate to fix those regressions. If no further regressions are found for two business days, but not before a week has elapsed since the first release candidate, the full binaries are released.&lt;/p&gt;
-
-&lt;h3 id=&#34;release-versioning:e39f786d0e9bcf34ce833b34fbb0c090&#34;&gt;Release versioning&lt;/h3&gt;
-
-&lt;p&gt;Version 0.14.0 is our first release marking the start of our beta phase. Until version 1.0.0, we increase the MINOR version every time we reach a new milestone.
-Version 1.0.0 marks the end of our beta phase; afterwards, we will label each release with a version number of the form MAJOR.MINOR.PATCH according to the &lt;a href=&#34;http://semver.org/&#34;&gt;semantic version 2.0.0 document&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&#34;current-status:e39f786d0e9bcf34ce833b34fbb0c090&#34;&gt;Current Status&lt;/h3&gt;
-
-&lt;p&gt;Stable
-We expect the following rules and features to be stable. They are widely used within Twitter, so our internal testing should ensure that there are no major breakages.&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
-      <title>Heron Topologies</title>
-      <link>/heron/docs/concepts/topologies/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/heron/docs/concepts/topologies/</guid>
-      <description>
-
-&lt;p&gt;A Heron &lt;strong&gt;topology&lt;/strong&gt; is a &lt;a href=&#34;https://en.wikipedia.org/wiki/Directed_acyclic_graph&#34;&gt;directed acyclic
-graph&lt;/a&gt; used to process
-streams of data. Heron topologies consist of three basic components:
-&lt;a href=&#34;#spouts&#34;&gt;spouts&lt;/a&gt; and &lt;a href=&#34;#bolts&#34;&gt;bolts&lt;/a&gt;, which are connected via
-&lt;strong&gt;streams&lt;/strong&gt; of &lt;a href=&#34;../../developers/data-model&#34;&gt;tuples&lt;/a&gt;. Below is a visual
-illustration of a simple topology:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&#34;/heron/img/topology.png&#34; alt=&#34;Heron topology&#34; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Spouts are responsible for emitting &lt;a href=&#34;../../developers/data-model&#34;&gt;tuples&lt;/a&gt;
-into the topology, while bolts are responsible for processing those tuples. In
-the diagram above, spout &lt;strong&gt;S1&lt;/strong&gt; feeds tuples to bolts &lt;strong&gt;B1&lt;/strong&gt; and &lt;strong&gt;B2&lt;/strong&gt; for
-processing; in turn, bolt &lt;strong&gt;B1&lt;/strong&gt; feeds processed tuples to bolts &lt;strong&gt;B3&lt;/strong&gt; and
-&lt;strong&gt;B4&lt;/strong&gt;, while bolt &lt;strong&gt;B2&lt;/strong&gt; feeds processed tuples to bolt &lt;strong&gt;B4&lt;/strong&gt;.&lt;/p&gt;
-
-&lt;p&gt;This is just a simple example; you can use bolts and spouts to form arbitrarily
-complex topologies.&lt;/p&gt;
-
-&lt;h2 id=&#34;topology-lifecycle:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Topology Lifecycle&lt;/h2&gt;
-
-&lt;p&gt;Once you&amp;rsquo;ve set up a &lt;a href=&#34;../../operators/deployment&#34;&gt;Heron cluster&lt;/a&gt;, you
-can use Heron&amp;rsquo;s &lt;a href=&#34;../../operators/heron-cli&#34;&gt;CLI tool&lt;/a&gt; to manage the entire
-lifecycle of a topology, which typically goes through the following stages:&lt;/p&gt;
-
-&lt;ol&gt;
-&lt;li&gt;&lt;a href=&#34;../../operators/heron-cli#submitting-a-topology&#34;&gt;submit&lt;/a&gt; the topology
-to the cluster. The topology is not yet processing streams but is ready to be
-activated.&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;../../operators/heron-cli#activating-a-topology&#34;&gt;activate&lt;/a&gt; the
-topology. The topology will begin processing streams in accordance with
-the topology architecture that you&amp;rsquo;ve created.&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;../../operators/heron-cli#restarting-a-topology&#34;&gt;restart&lt;/a&gt; an
-active topology if, for example, you need update the topology configuration.&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;../../operators/heron-cli#deactivating-a-topology&#34;&gt;deactivate&lt;/a&gt; the
-topology. Once deactivated, the topology will stop processing but
-remain running in the cluster.&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;../../operators/heron-cli#killing-a-topology&#34;&gt;kill&lt;/a&gt; a topology to completely
-remove it from the cluster.  It is no longer known to the Heron cluster and
-can no longer be activated. Once killed, the only way to run that topology is
-to re-submit it.&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h2 id=&#34;spouts:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Spouts&lt;/h2&gt;
-
-&lt;p&gt;A Heron &lt;strong&gt;spout&lt;/strong&gt; is a source of streams, responsible for emitting
-&lt;a href=&#34;../../developers/data-model&#34;&gt;tuples&lt;/a&gt; into the topology. A spout may, for
-example, read data from a Kestrel queue or read tweets from the Twitter API and
-emit tuples to one or more bolts.&lt;/p&gt;
-
-&lt;p&gt;Information on building spouts can be found in &lt;a href=&#34;../../developers/java/spouts&#34;&gt;Building
-Spouts&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&#34;bolts:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Bolts&lt;/h2&gt;
-
-&lt;p&gt;A Heron &lt;strong&gt;bolt&lt;/strong&gt; consumes streams of
-&lt;a href=&#34;../../developers/data-model&#34;&gt;tuples&lt;/a&gt; emitted by spouts and performs some
-set of user-defined processing operations on those tuples, which may include
-performing complex stream transformations, performing storage operations,
-aggregating multiple streams into one, emitting tuples to other bolts within the
-topology, and much more.&lt;/p&gt;
-
-&lt;p&gt;Information on building bolts can be found in &lt;a href=&#34;../../developers/java/bolts&#34;&gt;Building
-Bolts&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&#34;data-model:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Data Model&lt;/h2&gt;
-
-&lt;p&gt;Heron has a fundamentally tuple-driven data model. You can find more information
-in &lt;a href=&#34;../../developers/data-model&#34;&gt;Heron&amp;rsquo;s Data Model&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&#34;logical-plan:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Logical Plan&lt;/h2&gt;
-
-&lt;p&gt;A topology&amp;rsquo;s &lt;strong&gt;logical plan&lt;/strong&gt; is analagous to a database &lt;a href=&#34;https://en.wikipedia.org/wiki/Query_plan&#34;&gt;query
-plan&lt;/a&gt;. The image at the top of this
-page is an example logical plan for a topology.&lt;/p&gt;
-
-&lt;h2 id=&#34;physical-plan:2990a96fddad7dca382b7d6e0cf93241&#34;&gt;Physical Plan&lt;/h2&gt;
-
-&lt;p&gt;A topology&amp;rsquo;s &lt;strong&gt;physical plan&lt;/strong&gt; is related to its logical plan but with the
-crucial difference that a physical plan maps the actual execution logic of a
-topology, including the machines running each spout or bolt and more. Here&amp;rsquo;s a
-rough visual representation of a physical plan:&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&#34;/heron/img/physicalplan.png&#34; alt=&#34;Topology Physical Plan&#34; /&gt;&lt;/p&gt;
-</description>
-    </item>
-    
-    <item>
       <title>Testing Heron</title>
       <link>/heron/docs/contributors/testing/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
@@ -1127,193 +1039,90 @@ python integration-test/src/python/local_test_runner/main.py
     </item>
     
     <item>
-      <title>Linux Platforms</title>
-      <link>/heron/docs/developers/compiling/linux/</link>
+      <title>Twitter License Agreement (CLA)</title>
+      <link>/heron/docs/contributors/license/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>/heron/docs/developers/compiling/linux/</guid>
+      <guid>/heron/docs/contributors/license/</guid>
+      <description>&lt;!-- TODO --&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Feature Roadmap</title>
+      <link>/heron/docs/contributors/roadmap/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/heron/docs/contributors/roadmap/</guid>
       <description>
 
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;#building-on-ubuntu-14.04:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Ubuntu 14.04&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;#building-on-centos-7:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;CentOS 7&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
+&lt;p&gt;This document describes the Heron core contributors’ plans for introducing features that will be incorporated into version 1.0. Note that this roadmap only includes features that the Heron core contributors team itself intends to support. We anticipate that a number of other features will be added by community contributors.&lt;/p&gt;
 
-&lt;h2 id=&#34;building-on-ubuntu-14-04:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Building on Ubuntu 14.04&lt;/h2&gt;
+&lt;p&gt;For beta releases, the Heron team will maintain two code repositories:&lt;/p&gt;
 
-&lt;p&gt;This is a step by step guide for building Heron on a fresh Ubuntu 14.04 installation.&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;A non-public Twitter-internal repository, containing both the mirror of the public Heron Github repository and small proprietary Twitter-specific extensions and features.&lt;/p&gt;&lt;/li&gt;
 
-&lt;h4 id=&#34;step-1-first-update-ubuntu:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 1 - First update Ubuntu.&lt;/h4&gt;
+&lt;li&gt;&lt;p&gt;An external &lt;a href=&#34;https://github.com/twitter/heron&#34;&gt;GitHub repository&lt;/a&gt;, containing only the Heron code.&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;sudo apt-get update -y
-sudo apt-get upgrade -y
-&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&#34;feature-list:cd4a1b36ed2b93cfc52abf77a7d25d03&#34;&gt;Feature list&lt;/h3&gt;
 
-&lt;h4 id=&#34;step-2-install-required-libraries:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 2 - Install required libraries&lt;/h4&gt;
+&lt;p&gt;In the following list, each feature is associated with a corresponding milestone. The convention for the priorities are:&lt;/p&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;sudo apt-get install git build-essential automake cmake libtool zip \ 
-        libunwind-setjmp0-dev zlib1g-dev unzip pkg-config -y
-&lt;/code&gt;&lt;/pre&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;&lt;code&gt;P0&lt;/code&gt; feature will block the milestone; we will delay the milestone date until the feature is shipped.&lt;/p&gt;&lt;/li&gt;
 
-&lt;h4 id=&#34;step-3-set-the-following-environment-variables:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 3 - Set the following environment variables&lt;/h4&gt;
+&lt;li&gt;&lt;p&gt;&lt;code&gt;P1&lt;/code&gt; feature can delay the milestone if the feature can be shipped with a reasonable delay (2 months max).&lt;/p&gt;&lt;/li&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;export CC=/usr/bin/gcc-4.8
-export CCX=/usr/bin/g++-4.8
-&lt;/code&gt;&lt;/pre&gt;
+&lt;li&gt;&lt;p&gt;&lt;code&gt;P2&lt;/code&gt; feature will be dropped and rescheduled for later rather than delaying the milestone.&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
 
-&lt;h4 id=&#34;step-4-install-jdk-8:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 4 - Install JDK 8&lt;/h4&gt;
+&lt;!--
+TODO - add feature Roadmap
+--&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;sudo add-apt-repository ppa:webupd8team/java
-sudo apt-get update -y
-sudo apt-get install oracle-java8-installer -y
-&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;We will update this list when reaching each milestone; some milestones may also be refined if appropriate.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Support Policy</title>
+      <link>/heron/docs/contributors/support/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/heron/docs/contributors/support/</guid>
+      <description>
 
-&lt;h4 id=&#34;step-5-install-bazel:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 5 - Install Bazel&lt;/h4&gt;
+&lt;p&gt;Core contributors generally avoid making backwards-incompatible changes and are dedicated to remain backwards-compatible with the &lt;a href=&#34;http://storm.apache.org/&#34;&gt;Apache Storm API&lt;/a&gt; whenever possible. Substantial unit and integration tests are performed before every release to reasonably ensure reliability at scale.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;wget https://github.com/bazelbuild/bazel/releases/download/0.1.2/bazel-0.1.2-installer-linux-x86_64.sh
-chmod +x bazel-0.1.2-installer-linux-x86_64.sh
-./bazel-0.1.2-installer-linux-x86_64.sh --user
-&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;However, occasionally backwards-incompatible changes are required in order to fix bugs, to make further improvements to the system, such as improving performance or usability, or to lock down APIs that are known to be brittle.&lt;/p&gt;
 
-&lt;h4 id=&#34;step-6-make-sure-bazel-bin-is-in-the-path:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 6 - Make sure Bazel bin is in the PATH&lt;/h4&gt;
+&lt;p&gt;This document gives an overview of features that are widely used and considered stable. Stability implies that changes will be backwards compatible, or that a migration path is provided.  It also covers features that are unstable. Unstable features are not yet widely used, or are already planned to change them significantly, possibly in ways that are not backwards compatible.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;export PATH=&amp;quot;$PATH:$HOME/bin&amp;quot;
-&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Before a major change happens, you can reasonably expect that advanced notice will be provided on the mailing list. Just ask on heron-users@googlegroups.com.&lt;/p&gt;
 
-&lt;h4 id=&#34;step-7-get-the-latest-version-of-heron:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 7 - Get the latest version of heron&lt;/h4&gt;
+&lt;p&gt;All undocumented features are subject to change at any time without prior notice. Features that are documented but marked &lt;em&gt;experimental&lt;/em&gt; are also subject to change at any time without prior notice.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;git clone https://github.com/twitter/heron.git &amp;amp;&amp;amp; cd heron
-&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Heron relies on the Google &lt;a href=&#34;http://bazel.io&#34;&gt;Bazel&lt;/a&gt; build tool which is also in Beta.  Therefore, the Bazel Skylark macro and rules language (anything written in a .bzl file) is still subject to change. The Bazel Google group is in the process of migrating Google to Skylark, and expect the macro language to stabilize as part of that process.&lt;/p&gt;
 
-&lt;h4 id=&#34;step-8-configure-heron-for-build:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 8 - Configure Heron for build&lt;/h4&gt;
+&lt;p&gt;Please help keep discover issues: report bugs and regressions in the &lt;a href=&#34;https://github.com/twitter/heron/issues&#34;&gt;GitHub bugtracker&lt;/a&gt;. Heron core contributors will make an effort to triage all reported issues within 2 business days.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;./bazel_configure.py
-&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&#34;releases:e39f786d0e9bcf34ce833b34fbb0c090&#34;&gt;Releases&lt;/h3&gt;
 
-&lt;h4 id=&#34;step-9-build-the-project:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 9 - Build the project&lt;/h4&gt;
+&lt;p&gt;We regularly publish &lt;a href=&#34;https://github.com/twitter/heron/releases&#34;&gt;binary releases of Heron&lt;/a&gt;. To that end, release candidates are announced on heron-users; these are binaries that have passed all unit and integration tests. Over the next few days, regression tests are run, such as on applicable build targets at Twitter. If you have a critical project using Heron, it is recommended that you establish an automated testing process that tracks the current release candidate, and report any regressions.&lt;/p&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;bazel build --config=ubuntu heron/...  
-&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;If no regressions are discovered, official binaries are released after a week. However, regressions can delay the release of a release candidate. If regressions are found, corresponding cherry-picks are applied to the release candidate to fix those regressions. If no further regressions are found for two business days, but not before a week has elapsed since the first release candidate, the full binaries are released.&lt;/p&gt;
 
-&lt;h4 id=&#34;step-10-build-the-packages:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 10 - Build the packages&lt;/h4&gt;
+&lt;h3 id=&#34;release-versioning:e39f786d0e9bcf34ce833b34fbb0c090&#34;&gt;Release versioning&lt;/h3&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;bazel build --config=ubuntu scripts/packages:binpkgs  
-bazel build --config=ubuntu scripts/packages:tarpkgs
-&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Version 0.14.0 is our first release marking the start of our beta phase. Until version 1.0.0, we increase the MINOR version every time we reach a new milestone.
+Version 1.0.0 marks the end of our beta phase; afterwards, we will label each release with a version number of the form MAJOR.MINOR.PATCH according to the &lt;a href=&#34;http://semver.org/&#34;&gt;semantic version 2.0.0 document&lt;/a&gt;.&lt;/p&gt;
 
-&lt;p&gt;This will build the packages below the &lt;code&gt;bazel-bin/scripts/packages/&lt;/code&gt; directory.&lt;/p&gt;
+&lt;h3 id=&#34;current-status:e39f786d0e9bcf34ce833b34fbb0c090&#34;&gt;Current Status&lt;/h3&gt;
 
-&lt;h3 id=&#34;manually-installing-libraries:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Manually Installing Libraries&lt;/h3&gt;
-
-&lt;p&gt;If you encounter errors with libunwind, libtool, or gperftools install them manually&lt;/p&gt;
-
-&lt;p&gt;Compiling and installing &lt;a href=&#34;https://www.gnu.org/software/libtool&#34;&gt;libtool&lt;/a&gt;&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;wget http://ftpmirror.gnu.org/libtool/libtool-2.4.6.tar.gz
-tar -xvf libtool-2.4.6.tar.gz
-cd libtool-2.4.6
-./configure
-make
-sudo make install
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;Compiling and installing &lt;a href=&#34;http://www.nongnu.org/libunwind&#34;&gt;libunwind&lt;/a&gt;&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;wget http://download.savannah.gnu.org/releases/libunwind/libunwind-1.1.tar.gz
-tar -xvf libunwind-1.1.tar.gz
-cd libunwind-1.1
-./configure
-make
-sudo make install
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;Compiling and installing &lt;a href=&#34;https://github.com/gperftools/gperftools/releases&#34;&gt;gperftools&lt;/a&gt;&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;wget https://github.com/gperftools/gperftools/releases/download/gperftools-2.5/gperftools-2.5.tar.gz
-tar -xvf gperftools-2.5.tar.gz
-cd gperftools-2.5
-./configure
-make
-sudo make install
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h2 id=&#34;building-on-centos-7:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Building on CentOS 7&lt;/h2&gt;
-
-&lt;p&gt;This is a step by step guide for building Heron on a fresh CentOS 7 installation.&lt;/p&gt;
-
-&lt;h4 id=&#34;step-1-install-the-required-dependencies:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 1 - Install the required dependencies&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;sudo yum install gcc gcc-c++ kernel-devel wget unzip zlib-devel zip git automake cmake patch libtool -y
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h4 id=&#34;step-2-install-libunwind-from-source:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 2 - Install libunwind from source&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;wget http://download.savannah.gnu.org/releases/libunwind/libunwind-1.1.tar.gz
-tar xvf libunwind-1.1.tar.gz
-cd libunwind-1.1
-./configure
-make
-sudo make install
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h4 id=&#34;step-3-set-the-following-environment-variables-1:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 3 - Set the following environment variables&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;export CC=/usr/bin/gcc
-export CCX=/usr/bin/g++
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h4 id=&#34;step-4-install-jdk:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 4 - Install JDK&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;cd /opt/
-sudo wget --no-cookies --no-check-certificate --header &amp;quot;Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie&amp;quot; &amp;quot;http://download.oracle.com/otn-pub/java/jdk/8u91-b14/jdk-8u91-linux-x64.tar.gz&amp;quot;
-
-sudo tar xzf jdk-8u91-linux-x64.tar.gz
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;Use alternatives to configure the Java version&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;sudo cd /opt/jdk1.8.0_91/
-sudo alternatives --install /usr/bin/java java /opt/jdk1.8.0_91/bin/java 2
-sudo alternatives --config java
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;Set the javac and jar commands&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;sudo alternatives --install /usr/bin/jar jar /opt/jdk1.8.0_91/bin/jar 2
-sudo alternatives --install /usr/bin/javac javac /opt/jdk1.8.0_91/bin/javac 2
-sudo alternatives --set jar /opt/jdk1.8.0_91/bin/jar
-sudo alternatives --set javac /opt/jdk1.8.0_91/bin/javac
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;Export the Java environment variables&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;export JAVA_HOME=/opt/jdk1.8.0_91
-export JRE_HOME=/opt/jdk1.8.0_91/jre
-export PATH=$PATH:/opt/jdk1.8.0_91/bin:/opt/jdk1.8.0_91/jre/bin
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h4 id=&#34;step-5-install-bazel-0-1-2:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 5 - Install Bazel 0.1.2&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;wget https://github.com/bazelbuild/bazel/releases/download/0.1.2/bazel-0.1.2-installer-linux-x86_64.sh
-chmod +x bazel-0.1.2-installer-linux-x86_64.sh
-./bazel-0.1.2-installer-linux-x86_64.sh --user
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h4 id=&#34;step-6-download-heron-and-compile-it:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 6 - Download heron and compile it&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;cd
-git clone https://github.com/twitter/heron.git &amp;amp;&amp;amp; cd heron
-./bazel_configure.py
-bazel build --config=centos heron/...
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h4 id=&#34;step-7-build-the-binary-packages:34fe9f2d9cc3cd7e319ca75e7da08332&#34;&gt;Step 7 - Build the binary packages&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;bazel build --config=centos scripts/packages:binpkgs
-bazel build --config=centos scripts/packages:tarpkgs
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;This will build the packages below the &lt;code&gt;bazel-bin/scripts/packages/&lt;/code&gt; directory.&lt;/p&gt;
+&lt;p&gt;Stable
+We expect the following rules and features to be stable. They are widely used within Twitter, so our internal testing should ensure that there are no major breakages.&lt;/p&gt;
 </description>
     </item>
     
@@ -1629,69 +1438,83 @@ ADD compile.sh /compile.sh
     </item>
     
     <item>
-      <title>Building on Mac OS X</title>
-      <link>/heron/docs/developers/compiling/mac/</link>
+      <title>Implementing a Bolt</title>
+      <link>/heron/docs/developers/java/bolts/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>/heron/docs/developers/compiling/mac/</guid>
-      <description>
+      <guid>/heron/docs/developers/java/bolts/</guid>
+      <description>&lt;p&gt;Bolts must implement the &lt;a href=&#34;/heron/api/com/twitter/heron/api/bolt/IBolt.html&#34;&gt;&lt;code&gt;IBolt&lt;/code&gt;&lt;/a&gt; interface.&lt;/p&gt;
 
-&lt;p&gt;This is a step by step guide for building Heron on Mac OS (10.10 and 10.11).&lt;/p&gt;
-
-&lt;h4 id=&#34;step-1-install-brew-if-already-not-installed:7be74c584635419861677fc2502187c9&#34;&gt;Step 1 - Install brew, if already not installed&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;/usr/bin/ruby -e &amp;quot;$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)&amp;quot;
+&lt;pre&gt;&lt;code class=&#34;language-java&#34;&gt;public interface IBolt extends Serializable {
+  void prepare(Map&amp;lt;String, Object&amp;gt; heronConf, TopologyContext context, OutputCollector collector);
+  void execute(Tuple input);
+  void cleanup();
+}
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;h4 id=&#34;step-2-install-the-required-libraries:7be74c584635419861677fc2502187c9&#34;&gt;Step 2 - Install the required libraries&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;The &lt;code&gt;prepare&lt;/code&gt; method is called when the bolt is first initialized and provides
+the bolt with the executing environment.&lt;/p&gt;&lt;/li&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;brew install automake
-brew install cmake
+&lt;li&gt;&lt;p&gt;The &lt;code&gt;execute&lt;/code&gt; method is called to process a single input &lt;code&gt;Tuple&lt;/code&gt;. The &lt;code&gt;Tuple&lt;/code&gt;
+contains metadata about component/stream/task it comes from. And &lt;code&gt;OutputCollector&lt;/code&gt;
+is used to emit the result.&lt;/p&gt;&lt;/li&gt;
+
+&lt;li&gt;&lt;p&gt;The &lt;code&gt;cleanup&lt;/code&gt; method is called before the bolt is shutdown. There&amp;rsquo;s no
+guarantee that this method is called due to how the instance is killed.&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;See &lt;a href=&#34;https://github.com/twitter/heron/blob/master/heron/examples/src/java/com/twitter/heron/examples/ExclamationTopology.java#L67&#34;&gt;&lt;code&gt;ExclamationBolt&lt;/code&gt;&lt;/a&gt; for a simple bolt example.&lt;/p&gt;
+
+&lt;p&gt;Instead of implementing the &lt;a href=&#34;/heron/api/com/twitter/heron/api/bolt/IBolt.html&#34;&gt;&lt;code&gt;IBolt&lt;/code&gt;&lt;/a&gt; interface directly, you can implement &lt;a href=&#34;/heron/api/com/twitter/heron/api/bolt/IRichBolt.html&#34;&gt;&lt;code&gt;IRichBolt&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Implementing a Spout</title>
+      <link>/heron/docs/developers/java/spouts/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/heron/docs/developers/java/spouts/</guid>
+      <description>&lt;p&gt;Spouts must implement the &lt;a href=&#34;/heron/api/com/twitter/heron/api/spout/ISpout.html&#34;&gt;&lt;code&gt;ISpout&lt;/code&gt;&lt;/a&gt; interface.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-java&#34;&gt;public interface ISpout extends Serializable {
+  void open(Map&amp;lt;String, Object&amp;gt; conf, TopologyContext context, SpoutOutputCollector collector);
+  void close();
+  void activate();
+  void deactivate();
+  void nextTuple();
+  void ack(Object msgId);
+  void fail(Object msgId);
+}
 &lt;/code&gt;&lt;/pre&gt;
 
-&lt;h4 id=&#34;step-3-set-the-following-environment-variables:7be74c584635419861677fc2502187c9&#34;&gt;Step 3 - Set the following environment variables&lt;/h4&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;The &lt;code&gt;open&lt;/code&gt; method is called when the spout is initialized and provides the
+spout with the executing environment.&lt;/p&gt;&lt;/li&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;$ export CC=/usr/bin/clang
-$ export CXX=/usr/bin/clang++
-$ echo $CC $CXX
-&lt;/code&gt;&lt;/pre&gt;
+&lt;li&gt;&lt;p&gt;The &lt;code&gt;close&lt;/code&gt; method is called when the spout is shutdown. There&amp;rsquo;s no guarantee
+that this method is called due to how the instance is killed.&lt;/p&gt;&lt;/li&gt;
 
-&lt;h4 id=&#34;step-4-install-bazel:7be74c584635419861677fc2502187c9&#34;&gt;Step 4 - Install Bazel&lt;/h4&gt;
+&lt;li&gt;&lt;p&gt;The &lt;code&gt;activate&lt;/code&gt; method is called when the spout is asked to back into active
+state.&lt;/p&gt;&lt;/li&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;curl -O -L https://github.com/bazelbuild/bazel/releases/download/0.1.2/bazel-0.1.2-installer-darwin-x86_64.sh
-chmod +x bazel-0.1.2-installer-darwin-x86_64.sh
-./bazel-0.1.2-installer-darwin-x86_64.sh --user
-&lt;/code&gt;&lt;/pre&gt;
+&lt;li&gt;&lt;p&gt;The &lt;code&gt;deactivate&lt;/code&gt; method is called when the spout is asked to enter deactive
+state.&lt;/p&gt;&lt;/li&gt;
 
-&lt;h4 id=&#34;step-5-make-sure-bazel-bin-is-in-the-path:7be74c584635419861677fc2502187c9&#34;&gt;Step 5 - Make sure Bazel bin is in the PATH&lt;/h4&gt;
+&lt;li&gt;&lt;p&gt;The &lt;code&gt;nextTuple&lt;/code&gt; method is used to fetch tuples from input source and emit it
+to &lt;a href=&#34;/heron/api/com/twitter/heron/api/bolt/&#34;&gt;&lt;code&gt;OutputCollector&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;&lt;/li&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;export PATH=&amp;quot;$PATH:$HOME/bin&amp;quot;
-&lt;/code&gt;&lt;/pre&gt;
+&lt;li&gt;&lt;p&gt;The &lt;code&gt;ack&lt;/code&gt; method is called when the &lt;code&gt;Tuple&lt;/code&gt; with the &lt;code&gt;msgId&lt;/code&gt; emitted by this
+spout is successfully processed.&lt;/p&gt;&lt;/li&gt;
 
-&lt;h4 id=&#34;step-6-get-the-latest-version-of-heron:7be74c584635419861677fc2502187c9&#34;&gt;Step 6 - Get the latest version of heron&lt;/h4&gt;
+&lt;li&gt;&lt;p&gt;The &lt;code&gt;fail&lt;/code&gt; method is called when the &lt;code&gt;Tuple&lt;/code&gt; with the &lt;code&gt;msgId&lt;/code&gt; emitted by this
+spout is not processed successfully.&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
 
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;git clone https://github.com/twitter/heron.git &amp;amp;&amp;amp; cd heron
-&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;See &lt;a href=&#34;https://github.com/twitter/heron/blob/master/heron/examples/src/java/com/twitter/heron/examples/TestWordSpout.java&#34;&gt;&lt;code&gt;TestWordSpout&lt;/code&gt;&lt;/a&gt; for a simple spout example.&lt;/p&gt;
 
-&lt;h4 id=&#34;step-7-configure-heron-for-build:7be74c584635419861677fc2502187c9&#34;&gt;Step 7 - Configure Heron for build&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;./bazel_configure.py
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;If the configure scripts fails with missing dependencies, brew can be used to install the dependencies.&lt;/p&gt;
-
-&lt;h4 id=&#34;step-8-build-the-project:7be74c584635419861677fc2502187c9&#34;&gt;Step 8 - Build the project&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;bazel build --config=darwin heron/...
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h4 id=&#34;step-9-build-the-packages:7be74c584635419861677fc2502187c9&#34;&gt;Step 9 - Build the packages&lt;/h4&gt;
-
-&lt;pre&gt;&lt;code class=&#34;language-bash&#34;&gt;bazel build --config=darwin scripts/packages:binpkgs
-bazel build --config=darwin scripts/packages:tarpkgs
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;This will build the packages below the &lt;code&gt;bazel-bin/scripts/packages/&lt;/code&gt; directory.&lt;/p&gt;
+&lt;p&gt;Instead of implementing the &lt;a href=&#34;/heron/api/com/twitter/heron/api/spout/ISpout.html&#34;&gt;&lt;code&gt;ISpout&lt;/code&gt;&lt;/a&gt; interface directly, you can implement &lt;a href=&#34;/heron/api/com/twitter/heron/api/spout/IRichSpout.html&#34;&gt;&lt;code&gt;IRichSpout&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
 </description>
     </item>
     
