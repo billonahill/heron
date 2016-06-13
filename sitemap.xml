@@ -7,11 +7,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/contributors/codebase/</loc>
+    <loc>/heron/docs/concepts/architecture/</loc>
   </url>
   
   <url>
-    <loc>/heron/docs/concepts/architecture/</loc>
+    <loc>/heron/docs/contributors/codebase/</loc>
   </url>
   
   <url>
@@ -19,11 +19,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/contributors/custom-metrics-sink/</loc>
+    <loc>/heron/docs/concepts/topologies/</loc>
   </url>
   
   <url>
-    <loc>/heron/docs/contributors/governance/</loc>
+    <loc>/heron/docs/contributors/custom-metrics-sink/</loc>
   </url>
   
   <url>
@@ -32,6 +32,10 @@
   
   <url>
     <loc>/heron/docs/contributors/license/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/contributors/governance/</loc>
   </url>
   
   <url>
@@ -47,11 +51,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/compiling/docker/</loc>
+    <loc>/heron/docs/developers/compiling/compiling/</loc>
   </url>
   
   <url>
-    <loc>/heron/docs/developers/compiling/compiling/</loc>
+    <loc>/heron/docs/developers/compiling/docker/</loc>
   </url>
   
   <url>
@@ -67,11 +71,15 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/java/bolts/</loc>
+    <loc>/heron/docs/developers/serialization/</loc>
   </url>
   
   <url>
-    <loc>/heron/docs/developers/serialization/</loc>
+    <loc>/heron/docs/developers/java/spouts/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/developers/java/bolts/</loc>
   </url>
   
   <url>
@@ -79,11 +87,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/troubleshooting/</loc>
+    <loc>/heron/docs/developers/topologies/</loc>
   </url>
   
   <url>
-    <loc>/heron/docs/developers/topologies/</loc>
+    <loc>/heron/docs/getting-started-troubleshooting/</loc>
   </url>
   
   <url>
@@ -95,7 +103,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/getting-started-troubleshooting/</loc>
+    <loc>/heron/docs/developers/troubleshooting/</loc>
   </url>
   
   <url>
@@ -103,11 +111,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/java/spouts/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/getting-started/</loc>
+    <loc>/heron/docs/operators/configuration/instance/</loc>
   </url>
   
   <url>
@@ -115,11 +119,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/configuration/stmgr/</loc>
+    <loc>/heron/docs/getting-started/</loc>
   </url>
   
   <url>
-    <loc>/heron/docs/operators/configuration/instance/</loc>
+    <loc>/heron/docs/operators/configuration/stmgr/</loc>
   </url>
   
   <url>
@@ -139,7 +143,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/concepts/topologies/</loc>
+    <loc>/heron/docs/operators/deployment/schedulers/mesos/</loc>
   </url>
   
   <url>
@@ -151,19 +155,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/deployment/statemanagers/localfs/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/operators/deployment/schedulers/mesos/</loc>
-  </url>
-  
-  <url>
     <loc>/heron/docs/operators/deployment/schedulers/slurm/</loc>
   </url>
   
   <url>
-    <loc>/heron/docs/operators/deployment/statemanagers/zookeeper/</loc>
+    <loc>/heron/docs/operators/deployment/statemanagers/localfs/</loc>
   </url>
   
   <url>
@@ -171,11 +167,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/deployment/uploaders/localfs/</loc>
+    <loc>/heron/docs/operators/deployment/statemanagers/zookeeper/</loc>
   </url>
   
   <url>
-    <loc>/heron/docs/operators/heron-shell/</loc>
+    <loc>/heron/docs/operators/deployment/uploaders/localfs/</loc>
   </url>
   
   <url>
@@ -187,7 +183,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/heron-tracker-api/</loc>
+    <loc>/heron/docs/operators/heron-shell/</loc>
   </url>
   
   <url>
@@ -195,11 +191,15 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/observability/graphite/</loc>
+    <loc>/heron/docs/operators/heron-tracker-api/</loc>
   </url>
   
   <url>
     <loc>/heron/docs/operators/heron-ui/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/operators/observability/graphite/</loc>
   </url>
   
   <url>
