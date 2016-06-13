@@ -1059,7 +1059,7 @@ the &lt;a href=&#34;../topologies#logical-plan&#34;&gt;logical&lt;/a&gt; and
 &lt;p&gt;&lt;a href=&#34;../topologies#topology-lifecycle&#34;&gt;Topology Lifecycle&lt;/a&gt; describes the lifecycle states of a Heron
 topology. The diagram below illustrates the sequence of interactions amongst the Heron architectural
 components during the &lt;code&gt;submit&lt;/code&gt; and &lt;code&gt;deactivate&lt;/code&gt; client actions. Additionally, the system interaction
-while viewing a topology on the Heron UI is included.&lt;/p&gt;
+while viewing a topology on the Heron UI is shown.&lt;/p&gt;
 
 &lt;!--
 The source for this diagram lives here:
@@ -1721,6 +1721,7 @@ Scale - @Scale&lt;/a&gt; (Sep, 2015)&lt;/li&gt;
 &lt;h2 id=&#34;blog-posts:74f7fb04a75e766307d398251c369a21&#34;&gt;Blog Posts&lt;/h2&gt;
 
 &lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://blog.twitter.com/2016/open-sourcing-twitter-heron&#34;&gt;Open Sourcing Twitter Heron&lt;/a&gt; (May, 2016)&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://blog.twitter.com/2015/flying-faster-with-twitter-heron&#34;&gt;Flying Faster with Twitter
 Heron&lt;/a&gt; (June, 2015)&lt;/li&gt;
 &lt;/ul&gt;

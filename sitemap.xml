@@ -7,19 +7,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/concepts/architecture/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/contributors/custom-metrics-sink/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/concepts/topologies/</loc>
-  </url>
-  
-  <url>
     <loc>/heron/docs/contributors/codebase/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/concepts/architecture/</loc>
   </url>
   
   <url>
@@ -27,7 +19,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/contributors/custom-scheduler/</loc>
+    <loc>/heron/docs/contributors/custom-metrics-sink/</loc>
   </url>
   
   <url>
@@ -35,7 +27,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/contributors/testing/</loc>
+    <loc>/heron/docs/contributors/custom-scheduler/</loc>
   </url>
   
   <url>
@@ -51,7 +43,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/compiling/compiling/</loc>
+    <loc>/heron/docs/contributors/testing/</loc>
   </url>
   
   <url>
@@ -59,11 +51,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/java/bolts/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/developers/java/spouts/</loc>
+    <loc>/heron/docs/developers/compiling/compiling/</loc>
   </url>
   
   <url>
@@ -71,7 +59,15 @@
   </url>
   
   <url>
+    <loc>/heron/docs/developers/compiling/mac/</loc>
+  </url>
+  
+  <url>
     <loc>/heron/docs/developers/data-model/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/developers/java/bolts/</loc>
   </url>
   
   <url>
@@ -83,6 +79,10 @@
   </url>
   
   <url>
+    <loc>/heron/docs/developers/troubleshooting/</loc>
+  </url>
+  
+  <url>
     <loc>/heron/docs/developers/topologies/</loc>
   </url>
   
@@ -91,15 +91,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/developers/troubleshooting/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/developers/compiling/mac/</loc>
-  </url>
-  
-  <url>
     <loc>/heron/docs/developers/ui-guide/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/getting-started-troubleshooting/</loc>
   </url>
   
   <url>
@@ -107,7 +103,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/configuration/instance/</loc>
+    <loc>/heron/docs/developers/java/spouts/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/getting-started/</loc>
   </url>
   
   <url>
@@ -119,11 +119,15 @@
   </url>
   
   <url>
-    <loc>/heron/docs/getting-started/</loc>
+    <loc>/heron/docs/operators/configuration/instance/</loc>
   </url>
   
   <url>
     <loc>/heron/docs/operators/configuration/system/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/operators/configuration/tmaster/</loc>
   </url>
   
   <url>
@@ -135,11 +139,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/configuration/tmaster/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/operators/deployment/schedulers/local/</loc>
+    <loc>/heron/docs/concepts/topologies/</loc>
   </url>
   
   <url>
@@ -147,11 +147,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/deployment/schedulers/slurm/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/operators/deployment/schedulers/mesos/</loc>
+    <loc>/heron/docs/operators/deployment/schedulers/local/</loc>
   </url>
   
   <url>
@@ -159,7 +155,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/deployment/uploaders/hdfs/</loc>
+    <loc>/heron/docs/operators/deployment/schedulers/mesos/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/operators/deployment/schedulers/slurm/</loc>
   </url>
   
   <url>
@@ -167,7 +167,15 @@
   </url>
   
   <url>
+    <loc>/heron/docs/operators/deployment/uploaders/hdfs/</loc>
+  </url>
+  
+  <url>
     <loc>/heron/docs/operators/deployment/uploaders/localfs/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/operators/heron-shell/</loc>
   </url>
   
   <url>
@@ -179,7 +187,7 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/heron-shell/</loc>
+    <loc>/heron/docs/operators/heron-tracker-api/</loc>
   </url>
   
   <url>
@@ -187,15 +195,11 @@
   </url>
   
   <url>
-    <loc>/heron/docs/operators/heron-ui/</loc>
-  </url>
-  
-  <url>
-    <loc>/heron/docs/operators/heron-tracker-api/</loc>
-  </url>
-  
-  <url>
     <loc>/heron/docs/operators/observability/graphite/</loc>
+  </url>
+  
+  <url>
+    <loc>/heron/docs/operators/heron-ui/</loc>
   </url>
   
   <url>
