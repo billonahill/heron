@@ -13,6 +13,7 @@
 # limitations under the License.
 
 #!/usr/bin/env python2.7
+
 ''' heron-executor '''
 import atexit
 import datetime
@@ -26,6 +27,15 @@ import base64
 import string
 import random
 import yaml
+
+from functools import partial
+
+# pylint: disable=unused-import
+from heron.proto.packing_plan_pb2 import PackingPlan
+from heron.statemgrs.src.python import statemanagerfactory
+from heron.statemgrs.src.python.config import Config as StateMgrConfig
+
+STATEMGRS_KEY = "statemgrs"
 
 def print_usage():
   print (
@@ -187,10 +197,9 @@ class HeronExecutor(object):
     self.metricsmgr_ids = []
     self.heron_shell_ids = []
 
-    # this will soon be refactored to get instance dist dynamically at runtime instead of args
-    self.update_instance_distribution(self.parse_instance_distribution(args[5]))
-
     # This gets set once processes are launched
+    # pylint: disable=fixme
+    # TODO: we need to synchronize rw to this dict since is used by multiple threads
     self.processes_to_monitor = {}
 
     # Log itself pid
@@ -504,7 +513,8 @@ class HeronExecutor(object):
     return commands_to_kill, commands_to_keep, commands_to_start
 
   def launch(self):
-    current_commands = dict(map((lambda x: (x[1], x[2])), self.processes_to_monitor.values()))
+    current_commands = dict(map((lambda process: (process.name, process.command)),
+                                self.processes_to_monitor.values()))
     updated_commands = self.get_commands_to_run()
 
     # get the commands to kill, keep and start
@@ -536,6 +546,79 @@ class HeronExecutor(object):
         do_print("Failed to run command: %s. Exiting" % command)
         sys.exit(1)
 
+  def __get_state_manager_locations(self, state_manager_config_file='heron-conf/statemgr.yaml'):
+    """ reads configs to determine which state manager to use """
+    with open(state_manager_config_file, 'r') as stream:
+      config = yaml.load(stream)
+    state_manager_class = config['heron.class.state.manager']
+
+    # pylint: disable=fixme
+    # TODO: replace with proper config loading. only for prototyping!
+    if state_manager_class == 'com.twitter.heron.statemgr.localfs.LocalFileSystemStateManager':
+      return \
+        [
+            {
+                'type': 'file',
+                'name': 'local',
+                # this doesn't work since root path is
+                # ${HOME}/.herondata/repository/state/${CLUSTER}
+                #'rootpath': config['heron.statemgr.root.path'],
+                'rootpath': '~/.herondata/repository/state/local',
+                'tunnelhost': 'localhost',
+            }
+        ]
+    elif state_manager_class == 'com.twitter.heron.statemgr.zookeeper.curator.CuratorStateManager':
+      return \
+        [
+            {
+                'type': 'zookeeper',
+                'name': 'zk',
+                'hostport': config['heron.statemgr.connection.string'],
+                'rootpath': config['heron.statemgr.root.path'],
+                'tunnelhost': config['heron.statemgr.tunnel.host'],
+            }
+        ]
+    do_print("FATAL: unrecognized heron.class.state.manager found in %s: %s" %
+             (state_manager_config_file, config))
+    sys.exit(1)
+
+  def register_packing_plan_watcher(self, executor):
+    """
+    Receive updates to the packing plan from the statemgrs and update processes as needed.
+    """
+    statemgr_config = StateMgrConfig()
+    statemgr_config.set_state_locations(self.__get_state_manager_locations())
+    state_managers = statemanagerfactory.get_all_state_managers(statemgr_config)
+
+    # pylint: disable=unused-argument
+    def on_packing_plan_watch(state_manager, packing_plan):
+      do_print(
+          "State watch triggered for packing plan change. New PackingPlan: %s" % str(packing_plan))
+
+      current_distribution = self.instance_distribution
+      new_distribution = self.parse_instance_distribution(packing_plan.instance_distribution)
+
+      if current_distribution != new_distribution:
+        do_print("Instance distribution change detected on shard %s, relaunching. "\
+                 "Existing: %s, new: %s" % (self.shard, current_distribution, new_distribution))
+        self.update_instance_distribution(new_distribution)
+
+        # pylint: disable=fixme
+        # TODO: handle relaunch of running topology scenario
+        do_print("Relaunching shard %s" % self.shard)
+        executor.launch()
+      else:
+        do_print("Instance distribution not changed, not relaunching. existing: %s, new: %s" %
+                 (current_distribution, new_distribution))
+
+    for state_manager in state_managers:
+      # The callback function with the bound
+      # state_manager as first variable.
+      onPackingPlanWatch = partial(on_packing_plan_watch, state_manager)
+      state_manager.get_packing_plan(self.topology_name, onPackingPlanWatch)
+      do_print("Registered state watch for packing plan changes with state manager %s." %
+               str(state_manager))
+
 def main():
   if len(sys.argv) != 32:
     print_usage()
@@ -551,7 +634,7 @@ def main():
   # Instantiate the executor and launch it
   executor = HeronExecutor(sys.argv, shell_env)
   executor.prepare_launch()
-  executor.launch()
+  executor.register_packing_plan_watcher(executor)
   executor.monitor_processes()
 
 # pylint: disable=unused-argument

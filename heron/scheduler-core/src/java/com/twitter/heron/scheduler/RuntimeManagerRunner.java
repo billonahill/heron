@@ -14,22 +14,33 @@
 
 package com.twitter.heron.scheduler;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.twitter.heron.api.generated.TopologyAPI;
+import com.twitter.heron.common.basics.SysUtils;
 import com.twitter.heron.proto.scheduler.Scheduler;
+import com.twitter.heron.proto.system.PackingPlans;
 import com.twitter.heron.scheduler.client.ISchedulerClient;
 import com.twitter.heron.spi.common.Command;
 import com.twitter.heron.spi.common.Config;
 import com.twitter.heron.spi.common.Context;
+import com.twitter.heron.spi.packing.IPacking;
+import com.twitter.heron.spi.packing.PackingPlan;
+import com.twitter.heron.spi.packing.PackingPlanProtoDeserializer;
+import com.twitter.heron.spi.packing.PackingPlanProtoSerializer;
 import com.twitter.heron.spi.statemgr.SchedulerStateManagerAdaptor;
+import com.twitter.heron.spi.utils.ReflectionUtils;
 import com.twitter.heron.spi.utils.Runtime;
 import com.twitter.heron.spi.utils.TMasterUtils;
 
 public class RuntimeManagerRunner implements Callable<Boolean> {
   private static final Logger LOG = Logger.getLogger(RuntimeManagerRunner.class.getName());
+
+  static final String NEW_COMPONENT_PARALLELISM_KEY = "NEW_COMPONENT_PARALLELISM";
 
   private final Config config;
   private final Config runtime;
@@ -64,6 +75,10 @@ public class RuntimeManagerRunner implements Callable<Boolean> {
       case KILL:
         result = killTopologyHandler(topologyName);
         break;
+      case UPDATE:
+        result = updateTopologyHandler(topologyName,
+            config.getStringValue(NEW_COMPONENT_PARALLELISM_KEY));
+        break;
       default:
         LOG.severe("Unknown command for topology: " + command);
     }
@@ -74,7 +89,7 @@ public class RuntimeManagerRunner implements Callable<Boolean> {
   /**
    * Handler to activate a topology
    */
-  protected boolean activateTopologyHandler(String topologyName) {
+  private boolean activateTopologyHandler(String topologyName) {
     return TMasterUtils.transitionTopologyState(
         topologyName, "activate", Runtime.schedulerStateManagerAdaptor(runtime),
         TopologyAPI.TopologyState.PAUSED, TopologyAPI.TopologyState.RUNNING);
@@ -83,7 +98,7 @@ public class RuntimeManagerRunner implements Callable<Boolean> {
   /**
    * Handler to deactivate a topology
    */
-  protected boolean deactivateTopologyHandler(String topologyName) {
+  private boolean deactivateTopologyHandler(String topologyName) {
     return TMasterUtils.transitionTopologyState(
         topologyName, "deactivate", Runtime.schedulerStateManagerAdaptor(runtime),
         TopologyAPI.TopologyState.RUNNING, TopologyAPI.TopologyState.PAUSED);
@@ -148,6 +163,36 @@ public class RuntimeManagerRunner implements Callable<Boolean> {
   }
 
   /**
+   * Handler to update a topology
+   */
+  private boolean updateTopologyHandler(String topologyName, String newParallelism) {
+    LOG.fine(String.format("updateTopologyHandler called for %s with %s",
+        topologyName, newParallelism));
+    SchedulerStateManagerAdaptor manager = Runtime.schedulerStateManagerAdaptor(runtime);
+
+    Map<String, Integer> changeRequests = parallelismChangeRequests(newParallelism);
+    PackingPlans.PackingPlan currentPlan = manager.getPackingPlan(topologyName);
+    PackingPlans.PackingPlan proposedPlan = buildNewPackingPlan(currentPlan, changeRequests);
+
+    Scheduler.UpdateTopologyRequest updateTopologyRequest =
+        Scheduler.UpdateTopologyRequest.newBuilder()
+            .setCurrentPackingPlan(currentPlan)
+            .setProposedPackingPlan(proposedPlan)
+            .build();
+
+    LOG.info("Sending Updating topology request: " + updateTopologyRequest);
+    if (!schedulerClient.updateTopology(updateTopologyRequest)) {
+      LOG.log(Level.SEVERE, "Failed to update topology with Scheduler, updateTopologyRequest="
+          + updateTopologyRequest);
+      return false;
+    }
+
+    // Clean the connection when we are done.
+    LOG.fine("Scheduler updated topology successfully.");
+    return true;
+  }
+
+  /**
    * Clean all states of a heron topology
    * 1. Topology def and ExecutionState are required to exist to delete
    * 2. TMasterLocation, SchedulerLocation and PhysicalPlan may not exist to delete
@@ -159,23 +204,25 @@ public class RuntimeManagerRunner implements Callable<Boolean> {
 
     Boolean result;
 
-    // It is possible that  TMasterLocation, PhysicalPlan and SchedulerLocation are not set
-    // Just log but don't consider them failure
+    // It is possible that TMasterLocation, PackingPlan, PhysicalPlan and SchedulerLocation are nots
+    // set. Just log but don't consider it a failure and don't return false
     result = statemgr.deleteTMasterLocation(topologyName);
     if (result == null || !result) {
-      // We would not return false since it is possible that TMaster didn't write physical plan
       LOG.warning("Failed to clear TMaster location. Check whether TMaster set it correctly.");
+    }
+
+    result = statemgr.deletePackingPlan(topologyName);
+    if (result == null || !result) {
+      LOG.warning("Failed to clear packing plan. Check whether TMaster set it correctly.");
     }
 
     result = statemgr.deletePhysicalPlan(topologyName);
     if (result == null || !result) {
-      // We would not return false since it is possible that TMaster didn't write physical plan
       LOG.warning("Failed to clear physical plan. Check whether TMaster set it correctly.");
     }
 
     result = statemgr.deleteSchedulerLocation(topologyName);
     if (result == null || !result) {
-      // We would not return false since it is possible that TMaster didn't write physical plan
       LOG.warning("Failed to clear scheduler location. Check whether Scheduler set it correctly.");
     }
 
@@ -195,5 +242,89 @@ public class RuntimeManagerRunner implements Callable<Boolean> {
 
     LOG.fine("Cleaned up topology state");
     return true;
+  }
+
+  // *** all below should be replaced with the proper way to compute a new packing plan ***
+  private PackingPlans.PackingPlan buildNewPackingPlan(PackingPlans.PackingPlan currentProtoPlan,
+                                                       Map<String, Integer> changeRequests) {
+    PackingPlanProtoDeserializer deserializer = new PackingPlanProtoDeserializer();
+    PackingPlanProtoSerializer serializer = new PackingPlanProtoSerializer();
+    PackingPlan currentPackingPlan = deserializer.fromProto(currentProtoPlan);
+
+    Map<String, Integer> componentCounts = currentPackingPlan.getComponentCounts();
+    Integer totalInstances = currentPackingPlan.getInstanceCount();
+
+    Map<String, Integer> componentChanges = parallelismDelta(componentCounts, changeRequests);
+
+    // just add instances to the first container for prototype, cloning resources
+    /*PackingPlan.ContainerPlan containerToUse =
+        currentPackingPlan.getContainers().values().iterator().next();
+    Resource resourceToUse =
+        containerToUse.instances.values().iterator().next().resource;
+
+    Integer nextGlobalInstanceId = totalInstances + 1; // TODO: don't assume they go from 1 -> N
+    for (String component : componentChanges.keySet()) {
+      Integer delta = componentChanges.get(component);
+      assertTrue(delta > 0,
+          "Component reductions (%s) for %s not supported.", delta, component);
+      for (int i = 0; i < delta; i++) {
+        String instanceId =
+            String.format("%s:%s:%d:0", containerToUse.id, component, nextGlobalInstanceId++);
+        PackingPlan.InstancePlan instancePlan =
+            new PackingPlan.InstancePlan(instanceId, component, resourceToUse);
+        containerToUse.instances.put(instanceId, instancePlan);
+      }
+    }*/
+    // Create an instance of the packing class
+    String packingClass = Context.packingClass(config);
+    IPacking packing;
+    try {
+      // create an instance of the packing class
+      packing = ReflectionUtils.newInstance(packingClass);
+    } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
+      LOG.log(Level.SEVERE, "Failed to instantiate packing instance", e);
+      return null;
+    }
+    try {
+      packing.initialize(config, runtime);
+      PackingPlan packedPlan = packing.pack(currentPackingPlan, componentChanges);
+      return serializer.toProto(packedPlan);
+    } finally {
+      SysUtils.closeIgnoringExceptions(packing);
+    }
+  }
+
+  private Map<String, Integer> parallelismDelta(Map<String, Integer> componentCounts,
+                                                Map<String, Integer> changeRequests) {
+    for (String component : changeRequests.keySet()) {
+      if (!componentCounts.containsKey(component)) {
+        throw new IllegalArgumentException(
+            "Invalid component name in update request: " + component);
+      }
+      Integer newValue = changeRequests.get(component);
+      Integer delta = newValue - componentCounts.get(component);
+      if (delta == 0) {
+        changeRequests.remove(component);
+      } else {
+        changeRequests.put(component, delta);
+      }
+    }
+    return changeRequests;
+  }
+
+  // TODO: better error handling
+  private Map<String, Integer> parallelismChangeRequests(String newParallelism) {
+    Map<String, Integer> changes = new HashMap<>();
+    for (String componentValuePair : newParallelism.split(",")) {
+      String[] kvp = componentValuePair.split(":", 2);
+      changes.put(kvp[0], Integer.parseInt(kvp[1]));
+    }
+    return changes;
+  }
+
+  protected void assertTrue(boolean condition, String message, Object... values) {
+    if (!condition) {
+      throw new RuntimeException("ERROR: " + String.format(message, values));
+    }
   }
 }

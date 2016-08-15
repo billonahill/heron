@@ -11,23 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+package com.twitter.heron.scheduler;
 
-package com.twitter.heron.spi.common;
-
-/***
- * This enum defines commands invoked from heron client
- */
-public enum Command {
-  // TODO(mfu): Move ACTIVATE & DEACTIVATE out? They are non-related to Scheduling
-  SUBMIT,
-  KILL,
-  ACTIVATE,
-  DEACTIVATE,
-  UPDATE,
-  RESTART;
-
-  public static Command makeCommand(String commandString) {
-    return Command.valueOf(commandString.toUpperCase());
-  }
+public interface ScalableScheduler {
+  void addContainers(Integer count);
+  void removeContainers(Integer existingContainerCount, Integer count);
 }
-

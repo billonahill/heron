@@ -20,13 +20,19 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.xml.bind.DatatypeConverter;
 
+import com.google.common.base.Optional;
+
 import com.twitter.heron.api.generated.TopologyAPI;
 import com.twitter.heron.common.basics.FileUtils;
 import com.twitter.heron.proto.scheduler.Scheduler;
+import com.twitter.heron.scheduler.ScalableScheduler;
+import com.twitter.heron.scheduler.UpdateTopologyManager;
 import com.twitter.heron.spi.common.Config;
 import com.twitter.heron.spi.common.Context;
 import com.twitter.heron.spi.common.Misc;
@@ -37,18 +43,21 @@ import com.twitter.heron.spi.utils.Runtime;
 import com.twitter.heron.spi.utils.SchedulerUtils;
 import com.twitter.heron.spi.utils.TopologyUtils;
 
-public class AuroraScheduler implements IScheduler {
+public class AuroraScheduler implements IScheduler, ScalableScheduler {
   private static final Logger LOG = Logger.getLogger(AuroraLauncher.class.getName());
 
   private Config config;
   private Config runtime;
   private AuroraController controller;
+  private UpdateTopologyManager updateTopologyManager;
 
   @Override
   public void initialize(Config mConfig, Config mRuntime) {
     this.config = mConfig;
     this.runtime = mRuntime;
     this.controller = getController();
+    this.updateTopologyManager =
+        new UpdateTopologyManager(runtime, Optional.<ScalableScheduler>of(this));
   }
 
   /**
@@ -107,6 +116,28 @@ public class AuroraScheduler implements IScheduler {
   public boolean onRestart(Scheduler.RestartTopologyRequest request) {
     int containerId = request.getContainerIndex();
     return controller.restartJob(containerId);
+  }
+
+  @Override
+  public boolean onUpdate(Scheduler.UpdateTopologyRequest request) {
+    try {
+      updateTopologyManager.updateTopology(
+          request.getCurrentPackingPlan(), request.getProposedPackingPlan());
+    } catch (ExecutionException | InterruptedException e) {
+      LOG.log(Level.SEVERE, "Could not update topology for request: " + request, e);
+      return false;
+    }
+    return true;
+  }
+
+  @Override
+  public void addContainers(Integer count) {
+    controller.addContainers(count);
+  }
+
+  @Override
+  public void removeContainers(Integer existingContainerCount, Integer count) {
+    controller.removeContainers(existingContainerCount, count);
   }
 
   /**

@@ -21,13 +21,19 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.google.common.base.Optional;
+
+import com.twitter.heron.api.generated.TopologyAPI;
 import com.twitter.heron.common.basics.SysUtils;
 import com.twitter.heron.proto.scheduler.Scheduler;
+import com.twitter.heron.scheduler.ScalableScheduler;
+import com.twitter.heron.scheduler.UpdateTopologyManager;
 import com.twitter.heron.spi.common.Config;
 import com.twitter.heron.spi.packing.PackingPlan;
 import com.twitter.heron.spi.scheduler.IScheduler;
@@ -43,6 +49,7 @@ public class LocalScheduler implements IScheduler {
   private final Map<Process, Integer> processToContainer = new ConcurrentHashMap<>();
   private Config config;
   private Config runtime;
+  private UpdateTopologyManager updateTopologyManager;
   // has the topology been killed?
   private volatile boolean isTopologyKilled = false;
 
@@ -50,6 +57,8 @@ public class LocalScheduler implements IScheduler {
   public void initialize(Config mConfig, Config mRuntime) {
     this.config = mConfig;
     this.runtime = mRuntime;
+    this.updateTopologyManager =
+        new UpdateTopologyManager(runtime, Optional.<ScalableScheduler>absent());
   }
 
   @Override
@@ -223,17 +232,30 @@ public class LocalScheduler implements IScheduler {
     return true;
   }
 
-  public boolean isTopologyKilled() {
+  @Override
+  public boolean onUpdate(Scheduler.UpdateTopologyRequest request) {
+    try {
+      TopologyAPI.Topology topology = Runtime.topology(runtime);
+      updateTopologyManager.updateTopology(
+          request.getCurrentPackingPlan(), request.getProposedPackingPlan());
+    } catch (ExecutionException | InterruptedException e) {
+      LOG.log(Level.SEVERE, "Could not update topology for request: " + request, e);
+      return false;
+    }
+    return true;
+  }
+
+  boolean isTopologyKilled() {
     return isTopologyKilled;
   }
 
   // This method shall be used only for unit test
-  protected ExecutorService getMonitorService() {
+  ExecutorService getMonitorService() {
     return monitorService;
   }
 
   // This method shall be used only for unit test
-  protected Map<Process, Integer> getProcessToContainer() {
+  Map<Process, Integer> getProcessToContainer() {
     return processToContainer;
   }
 }
